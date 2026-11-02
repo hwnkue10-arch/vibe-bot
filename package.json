@@ -8,7 +8,8 @@
   "scripts": {
     "start": "bun run bot.ts",
     "typecheck": "tsc --noEmit",
-    "read-channel": "bun run tools/read-channel.ts"
+    "read-channel": "bun run tools/read-channel.ts",
+    "send-channel": "bun run tools/send-channel.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
