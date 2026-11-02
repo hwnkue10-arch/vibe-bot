@@ -289,6 +289,7 @@ client.on("messageCreate", async (message) => {
       cwd: rootDir,
       timeout: 180000,
       maxBuffer: 10 * 1024 * 1024,
+      windowsHide: true,
     });
 
     const output = (stdout || stderr || "응답이 비어 있습니다.").trim();
