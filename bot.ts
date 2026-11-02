@@ -9,7 +9,7 @@ const execAsync = promisify(exec);
 // 1. 현재 폴더 기준 경로 설정 (이식성 보장)
 const rootDir = resolve(import.meta.dir);
 
-// agy 실행 경로 동적 탐색 (어떤 PC에서도 자동 감지)
+// agy 실행 경로 동적 탐색
 function getAgyExecutable(): string {
   if (process.env.AGY_BIN && existsSync(process.env.AGY_BIN)) {
     return `"${process.env.AGY_BIN}"`;
@@ -29,7 +29,6 @@ function getAgyExecutable(): string {
     }
   }
 
-  // 시스템 PATH에 등록된 agy 기본 호출
   return "agy";
 }
 
@@ -73,7 +72,7 @@ client.once("ready", () => {
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
-  // 허용목록(allowlist) 검증 - 보안 정책 준수
+  // 허용목록(allowlist) 검증 - 지정된 사용자만 처리
   if (!allowList.includes(message.author.id)) {
     return;
   }
@@ -86,13 +85,12 @@ client.on("messageCreate", async (message) => {
   let shouldRespond = false;
 
   if (isDM) {
-    // 1:1 DM은 멘션 불필요
     shouldRespond = true;
   } else if (channelPolicy && channelPolicy.requireMention === false) {
-    // 멘션 면제 채널: 멘션 없이 응답
+    // 지정 채널: 멘션 없이 응답
     shouldRespond = true;
   } else if (isBotMentioned) {
-    // 일반 서버 채널: @봇 멘션 필수
+    // 일반 채널: 멘션 시 응답
     shouldRespond = true;
   }
 
@@ -113,23 +111,30 @@ client.on("messageCreate", async (message) => {
 
   console.log(`📩 [수신 (${channelId}) from ${message.author.username}]: ${userQuery}`);
 
-  try {
-    await message.channel.sendTyping();
+  // 지속적인 '입력 중...(typing)' 상태 유지 (10초마다 갱신)
+  await message.channel.sendTyping().catch(() => {});
+  const typingInterval = setInterval(() => {
+    message.channel.sendTyping().catch(() => {});
+  }, 8000);
 
+  try {
     if (userQuery === "!ping" || userQuery === "ping") {
       await message.reply("🏓 pong! Antigravity 에이전트 브릿지가 정상 연결되어 있습니다.");
       return;
     }
 
-    // 동적 탐색된 agy 바이너리로 Antigravity 호출 (--dangerously-skip-permissions 플래그로 헤드리스 모드 명령어 자동 승인)
+    // 동적 탐색된 agy 바이너리로 Antigravity 호출
     const agyBin = getAgyExecutable();
     const escapedQuery = userQuery.replace(/"/g, '\\"');
     const cmd = `${agyBin} --dangerously-skip-permissions --model gemini-3.8-flash-high -p "${escapedQuery}"`;
 
-    console.log(`🤖 Antigravity CLI 실행 중...`);
+    console.log(`🤖 Antigravity CLI 실행 중 (타임아웃 180초)...`);
+    
+    // 타임아웃을 180초(3분)로 넉넉하게 설정하여 복잡한 조사/코드 실행도 안정적으로 완료
     const { stdout, stderr } = await execAsync(cmd, {
       cwd: rootDir,
-      timeout: 60000,
+      timeout: 180000,
+      maxBuffer: 10 * 1024 * 1024,
     });
 
     const output = (stdout || stderr || "응답이 비어 있습니다.").trim();
@@ -144,6 +149,8 @@ client.on("messageCreate", async (message) => {
   } catch (error: any) {
     console.error("❌ 명령 실행 오류:", error);
     await message.reply(`⚠️ 처리 중 오류가 발생했습니다: ${error.message || error}`);
+  } finally {
+    clearInterval(typingInterval);
   }
 });
 
