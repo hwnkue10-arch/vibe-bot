@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Partials, TextChannel } from "discord.js";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve, join } from "path";
 import { exec } from "child_process";
@@ -105,22 +105,6 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message],
 });
 
-// 채널 메시지 읽기 헬퍼 함수
-async function fetchChannelMessages(targetChannelId: string, limitCount: number = 15): Promise<string> {
-  const targetChannel = await client.channels.fetch(targetChannelId).catch(() => null);
-  if (!targetChannel || !targetChannel.isTextBased()) {
-    throw new Error(`채널을 찾을 수 없거나 텍스트 채널이 아닙니다. (ID: ${targetChannelId})`);
-  }
-  const messages = await (targetChannel as any).messages.fetch({ limit: limitCount });
-  const sorted = Array.from(messages.values()).reverse();
-  if (sorted.length === 0) return "(채널에 메시지가 없습니다)";
-  
-  return sorted.map((m: any) => {
-    const time = new Date(m.createdTimestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-    return `[${time}] ${m.author.username}: ${m.content || "(첨부/내용없음)"}`;
-  }).join("\n");
-}
-
 client.once("ready", () => {
   console.log(`====================================================`);
   console.log(`✅ Antigravity Discord 봇 로그인 성공! [${client.user?.tag}]`);
@@ -189,9 +173,8 @@ client.on("messageCreate", async (message) => {
       "• `!models` : 사용 가능한 모델 및 강도 목록 확인",
       "• `!model <모델명> [강도]` : 모델 변경 (예: `!model claude-sonnet-5-5 high`)",
       "• `!effort <low|medium|high>` : 모델 강도만 변경 (예: `!effort medium`)",
-      "• `!read [채널ID] [개수]` : 채널 최근 대화 읽기 (기본: 현재 채널 15개)",
       "• `!ping` : 봇 응답 속도 및 연결 상태 확인",
-      "• `git status 해줘` 등 일반 메시지 : 로컬 Antigravity 에이전트가 작업 수행",
+      "• 일반 메시지 : 로컬 Antigravity AI 에이전트가 자연어로 작업 수행 (코딩, 파일 작업, 채널 탐색 등)",
     ].join("\n");
     await message.reply(helpText);
     return;
@@ -283,43 +266,6 @@ client.on("messageCreate", async (message) => {
       `• 강도(Effort): **\`${currentSettings.effort}\`**\n` +
       `• 최종 실행 식별자: **\`${getFullModelString()}\`**`
     );
-    return;
-  }
-
-  // (6) 채널 대화 읽기 (!read [채널ID] [개수], !읽기)
-  if (lowerQuery.startsWith("!read") || lowerQuery.startsWith("!읽기")) {
-    const parts = userQuery.split(/\s+/);
-    let targetCh = channelId;
-    let count = 15;
-    const arg1 = parts[1] || "";
-    const arg2 = parts[2] || "";
-
-    if (parts.length === 2) {
-      if (/^\d{17,20}$/.test(arg1)) {
-        targetCh = arg1;
-      } else if (!isNaN(parseInt(arg1, 10))) {
-        count = parseInt(arg1, 10);
-      }
-    } else if (parts.length >= 3) {
-      targetCh = arg1.replace(/[^0-9]/g, "") || channelId;
-      count = parseInt(arg2, 10) || 15;
-    }
-
-    try {
-      await message.channel.sendTyping();
-      const chatLog = await fetchChannelMessages(targetCh, count);
-      const header = `📜 **채널 [${targetCh}] 최근 메시지 ${count}개**\n\`\`\`text\n`;
-      const footer = `\n\`\`\``;
-      const combined = header + chatLog + footer;
-
-      if (combined.length <= 1900) {
-        await message.reply(combined);
-      } else {
-        await message.reply(header + chatLog.slice(0, 1800) + `\n... (일부 생략)` + footer);
-      }
-    } catch (err: any) {
-      await message.reply(`⚠️ 채널 메시지를 읽어오지 못했습니다: ${err.message}`);
-    }
     return;
   }
 
