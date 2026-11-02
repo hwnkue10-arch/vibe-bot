@@ -3,6 +3,10 @@
 .env.local
 *.token
 
+# 개인 보안 및 로컬 런타임 설정 (GitHub 업로드 절대 금지)
+access.json
+bot-settings.json
+
 # 의존성 및 패키지
 node_modules/
 bun.lockb
@@ -16,3 +20,4 @@ bun.lock
 Thumbs.db
 .vscode/
 .idea/
+

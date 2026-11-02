@@ -80,6 +80,7 @@ function getFullModelString(): string {
 const accessConfigPath = resolve(rootDir, "access.json");
 if (!existsSync(accessConfigPath)) {
   console.error("❌ access.json 파일을 찾을 수 없습니다.");
+  console.error("👉 access.example.json 파일을 복사하여 access.json 을 생성하고 본인의 Discord 유저 ID를 입력하세요.");
   process.exit(1);
 }
 

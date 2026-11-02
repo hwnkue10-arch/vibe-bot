@@ -1,16 +1,20 @@
 {
-  "name": "my-bot",
-  "module": "index.ts",
+  "name": "vibe-bot",
+  "version": "1.0.0",
+  "description": "Google Antigravity Agent Discord Bridge",
+  "module": "bot.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "typecheck": "bun check"
+    "start": "bun run bot.ts",
+    "typecheck": "tsc --noEmit",
+    "read-channel": "bun run tools/read-channel.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^7"
+    "typescript": "^5.0.0"
   },
   "dependencies": {
     "discord.js": "^14.28.0"
