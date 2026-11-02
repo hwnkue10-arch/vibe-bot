@@ -156,8 +156,14 @@ sequenceDiagram
 
 ### 3단계: 실행하기
 
-의존성을 설치하고 봇을 실행합니다:
+#### 🌟 방법 1. 원클릭 실행 (Windows 사용자 추천 ⭐)
+터미널을 열고 명령어를 칠 필요 없이, 폴더에 있는 **`start.bat`** 파일을 더블클릭하기만 하면 됩니다:
+- Bun 및 Antigravity CLI 환경 변수를 자동으로 병합합니다.
+- `.env` 및 `access.json` 설정 파일 존재 여부를 자동 검사하고 가이드합니다.
+- 패키지 의존성(`node_modules`)이 없으면 자동으로 `bun install`을 수행한 후 봇을 안전하게 가동합니다.
 
+#### 방법 2. 터미널 수동 실행
+PowerShell 또는 CMD 터미널에서 직접 실행할 수도 있습니다:
 ```powershell
 # 의존성 설치
 bun install
@@ -165,8 +171,6 @@ bun install
 # 봇 실행
 bun run bot.ts
 ```
-
-> **Windows 사용자 팁**: 폴더에 있는 **`discord_bot.bat`** 파일을 더블클릭하면 모든 경로를 자동으로 설정하여 원클릭으로 봇이 켜집니다!
 
 ---
 
