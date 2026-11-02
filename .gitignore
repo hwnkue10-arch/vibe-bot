@@ -1,0 +1,18 @@
+# 환경 변수 및 시크릿 키 보호 (GitHub 업로드 절대 금지)
+.env
+.env.local
+*.token
+
+# 의존성 및 패키지
+node_modules/
+bun.lockb
+bun.lock
+
+# 로그 파일
+*.log
+
+# OS 및 IDE 임시 파일
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
