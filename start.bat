@@ -68,3 +68,4 @@ if %errorlevel% neq 0 (
     echo ⚠️ 봇 실행이 비정상 종료되었습니다.
     pause
 )
+
