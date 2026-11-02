@@ -98,6 +98,8 @@ sequenceDiagram
 | **`!model`** / **`!모델`** | 현재 활성화되어 있는 모델과 추론 강도를 확인합니다. | `!model` |
 | **`!model <모델명> [강도]`** | AI 모델과 추론 강도를 즉시 변경합니다. (설정 자동 저장) | `!model claude-sonnet-5-5 high`<br>`!model gemini-3.8-flash low` |
 | **`!effort <low\|medium\|high>`** | 현재 모델의 추론 강도(Effort)만 변경합니다. | `!effort medium` |
+| **`!read [채널ID] [개수]`** / **`!읽기`** | 지정한 채널(기본: 현재 채널)의 최근 대화 로그를 읽어옵니다. | `!read`<br>`!read 1566643845670768680 10` |
+| **`!summary [채널ID] [개수]`** / **`!요약`** | 채널 최근 대화를 AI 에이전트가 분석하여 핵심 요약합니다. | `!summary`<br>`!summary 1566643845670768680 30` |
 | **`!help`** / **`!도움말`** | 봇 사용법 및 명령어 전체 안내를 확인합니다. | `!help` |
 | **`!ping`** | 봇의 응답 상태 및 지연 시간을 점검합니다. | `!ping` |
 | **`git status 해줘`** 등 일반 메시지 | 로컬 Antigravity 에이전트가 PC에서 실제 작업을 수행합니다. | `git status 해줘`<br>`최근 커밋 로그 3개 요약해줘` |

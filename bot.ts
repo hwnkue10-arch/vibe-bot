@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Partials } from "discord.js";
+import { Client, GatewayIntentBits, Partials, TextChannel } from "discord.js";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve, join } from "path";
 import { exec } from "child_process";
@@ -104,6 +104,22 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message],
 });
 
+// 채널 메시지 읽기 헬퍼 함수
+async function fetchChannelMessages(targetChannelId: string, limitCount: number = 15): Promise<string> {
+  const targetChannel = await client.channels.fetch(targetChannelId).catch(() => null);
+  if (!targetChannel || !targetChannel.isTextBased()) {
+    throw new Error(`채널을 찾을 수 없거나 텍스트 채널이 아닙니다. (ID: ${targetChannelId})`);
+  }
+  const messages = await (targetChannel as any).messages.fetch({ limit: limitCount });
+  const sorted = Array.from(messages.values()).reverse();
+  if (sorted.length === 0) return "(채널에 메시지가 없습니다)";
+  
+  return sorted.map((m: any) => {
+    const time = new Date(m.createdTimestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    return `[${time}] ${m.author.username}: ${m.content || "(첨부/내용없음)"}`;
+  }).join("\n");
+}
+
 client.once("ready", () => {
   console.log(`====================================================`);
   console.log(`✅ Antigravity Discord 봇 로그인 성공! [${client.user?.tag}]`);
@@ -154,7 +170,7 @@ client.on("messageCreate", async (message) => {
   console.log(`📩 [수신 (${channelId}) from ${message.author.username}]: ${userQuery}`);
 
   // ----------------------------------------------------
-  // 내부 제어 명령어 처리 (!ping, !models, !model, !effort)
+  // 내부 제어 명령어 처리 (!ping, !help, !models, !model, !effort, !read, !summary)
   // ----------------------------------------------------
   const lowerQuery = userQuery.toLowerCase();
 
@@ -172,6 +188,8 @@ client.on("messageCreate", async (message) => {
       "• `!models` : 사용 가능한 모델 및 강도 목록 확인",
       "• `!model <모델명> [강도]` : 모델 변경 (예: `!model claude-sonnet-5-5 high`)",
       "• `!effort <low|medium|high>` : 모델 강도만 변경 (예: `!effort medium`)",
+      "• `!read [채널ID] [개수]` : 채널 최근 대화 읽기 (기본: 현재 채널 15개)",
+      "• `!summary [채널ID] [개수]` : 채널 최근 대화를 AI가 핵심 요약",
       "• `!ping` : 봇 응답 속도 및 연결 상태 확인",
       "• `git status 해줘` 등 일반 메시지 : 로컬 Antigravity 에이전트가 작업 수행",
     ].join("\n");
@@ -217,7 +235,6 @@ client.on("messageCreate", async (message) => {
   // (5) 현재 모델 조회 및 변경 (!model [모델명] [강도])
   if (lowerQuery.startsWith("!model") || lowerQuery.startsWith("!모델")) {
     const parts = userQuery.split(/\s+/);
-    // 5-1. 인자가 없는 경우: 현재 모델 확인
     if (parts.length === 1) {
       await message.reply(
         `현재 활성 모델은 **\`${getFullModelString()}\`** 입니다.\n(모델: \`${currentSettings.baseModel}\`, 강도: \`${currentSettings.effort}\`)\n\n모델을 변경하려면 \`!model <모델명> [강도]\` 또는 목록 확인은 \`!models\` 를 입력하세요.`
@@ -225,11 +242,9 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 5-2. 인자가 있는 경우: 모델 변경 처리
     let requestedModel = (parts[1] || "").toLowerCase();
     let requestedEffort: "low" | "medium" | "high" | null = null;
 
-    // 만약 사용자가 gemini-3.8-flash-high 처럼 뒷부분에 -low/-medium/-high를 붙여서 넘겼을 때 분리 처리
     for (const eff of ["low", "medium", "high"] as const) {
       if (requestedModel.endsWith(`-${eff}`)) {
         requestedModel = requestedModel.slice(0, -(eff.length + 1));
@@ -238,7 +253,6 @@ client.on("messageCreate", async (message) => {
       }
     }
 
-    // 두 번째 인자로 effort가 따로 들어온 경우 (예: !model gemini-3.8-flash high)
     if (parts.length >= 3) {
       const secondArg = (parts[2] || "").toLowerCase();
       if (secondArg === "low" || secondArg === "medium" || secondArg === "high") {
@@ -246,7 +260,6 @@ client.on("messageCreate", async (message) => {
       }
     }
 
-    // 유효한 모델인지 확인
     const matchedModel = SUPPORTED_MODELS.find(
       (m) => m.id === requestedModel || m.id.includes(requestedModel)
     );
@@ -271,6 +284,74 @@ client.on("messageCreate", async (message) => {
       `• 최종 실행 식별자: **\`${getFullModelString()}\`**`
     );
     return;
+  }
+
+  // (6) 채널 대화 읽기 (!read [채널ID] [개수], !읽기)
+  if (lowerQuery.startsWith("!read") || lowerQuery.startsWith("!읽기")) {
+    const parts = userQuery.split(/\s+/);
+    let targetCh = channelId;
+    let count = 15;
+    const arg1 = parts[1] || "";
+    const arg2 = parts[2] || "";
+
+    if (parts.length === 2) {
+      if (/^\d{17,20}$/.test(arg1)) {
+        targetCh = arg1;
+      } else if (!isNaN(parseInt(arg1, 10))) {
+        count = parseInt(arg1, 10);
+      }
+    } else if (parts.length >= 3) {
+      targetCh = arg1.replace(/[^0-9]/g, "") || channelId;
+      count = parseInt(arg2, 10) || 15;
+    }
+
+    try {
+      await message.channel.sendTyping();
+      const chatLog = await fetchChannelMessages(targetCh, count);
+      const header = `📜 **채널 [${targetCh}] 최근 메시지 ${count}개**\n\`\`\`text\n`;
+      const footer = `\n\`\`\``;
+      const combined = header + chatLog + footer;
+
+      if (combined.length <= 1900) {
+        await message.reply(combined);
+      } else {
+        await message.reply(header + chatLog.slice(0, 1800) + `\n... (일부 생략)` + footer);
+      }
+    } catch (err: any) {
+      await message.reply(`⚠️ 채널 메시지를 읽어오지 못했습니다: ${err.message}`);
+    }
+    return;
+  }
+
+  // (7) 채널 대화 AI 요약 (!summary [채널ID] [개수], !요약)
+  if (lowerQuery.startsWith("!summary") || lowerQuery.startsWith("!요약")) {
+    const parts = userQuery.split(/\s+/);
+    let targetCh = channelId;
+    let count = 20;
+    const arg1 = parts[1] || "";
+    const arg2 = parts[2] || "";
+
+    if (parts.length === 2) {
+      if (/^\d{17,20}$/.test(arg1)) {
+        targetCh = arg1;
+      } else if (!isNaN(parseInt(arg1, 10))) {
+        count = parseInt(arg1, 10);
+      }
+    } else if (parts.length >= 3) {
+      targetCh = arg1.replace(/[^0-9]/g, "") || channelId;
+      count = parseInt(arg2, 10) || 20;
+    }
+
+    await message.channel.sendTyping();
+    let chatLog = "";
+    try {
+      chatLog = await fetchChannelMessages(targetCh, count);
+    } catch (err: any) {
+      await message.reply(`⚠️ 채널 메시지를 가져오지 못했습니다: ${err.message}`);
+      return;
+    }
+
+    userQuery = `아래는 디스코드 채널(${targetCh})의 최근 대화 내용입니다. 주요 대화 주제, 주요 논의 사항, 결론을 한국어로 알기 쉽게 핵심 요약해줘:\n\n${chatLog}`;
   }
 
   // ----------------------------------------------------
