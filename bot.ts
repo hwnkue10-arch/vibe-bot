@@ -287,8 +287,8 @@ client.on("messageCreate", async (message) => {
 
     const { stdout, stderr } = await execAsync(cmd, {
       cwd: rootDir,
-      timeout: 180000,
-      maxBuffer: 10 * 1024 * 1024,
+      timeout: 600000, // 10분 (600,000ms)으로 넉넉하게 확장
+      maxBuffer: 20 * 1024 * 1024,
       windowsHide: true,
     });
 
@@ -303,7 +303,15 @@ client.on("messageCreate", async (message) => {
     }
   } catch (error: any) {
     console.error("❌ 명령 실행 오류:", error);
-    await message.reply(`⚠️ 처리 중 오류가 발생했습니다: ${error.message || error}`);
+    if (error.killed && (error.signal === "SIGTERM" || error.code === "ETIMEDOUT")) {
+      await message.reply(
+        "⏱️ **작업 제한 시간(10분)을 초과하여 중단되었습니다.**\n" +
+        "• 외부 레포지토리 탐색이나 대규모 코드 작성 등 무거운 작업일 수 있습니다.\n" +
+        "• 질문을 작은 단위로 쪼개어 요청하시거나, `!effort medium` 으로 추론 강도를 조정해 보세요."
+      );
+    } else {
+      await message.reply(`⚠️ 처리 중 오류가 발생했습니다: ${error.message || error}`);
+    }
   } finally {
     clearInterval(typingInterval);
   }
