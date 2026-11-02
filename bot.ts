@@ -190,7 +190,6 @@ client.on("messageCreate", async (message) => {
       "• `!model <모델명> [강도]` : 모델 변경 (예: `!model claude-sonnet-5-5 high`)",
       "• `!effort <low|medium|high>` : 모델 강도만 변경 (예: `!effort medium`)",
       "• `!read [채널ID] [개수]` : 채널 최근 대화 읽기 (기본: 현재 채널 15개)",
-      "• `!summary [채널ID] [개수]` : 채널 최근 대화를 AI가 핵심 요약",
       "• `!ping` : 봇 응답 속도 및 연결 상태 확인",
       "• `git status 해줘` 등 일반 메시지 : 로컬 Antigravity 에이전트가 작업 수행",
     ].join("\n");
@@ -322,37 +321,6 @@ client.on("messageCreate", async (message) => {
       await message.reply(`⚠️ 채널 메시지를 읽어오지 못했습니다: ${err.message}`);
     }
     return;
-  }
-
-  // (7) 채널 대화 AI 요약 (!summary [채널ID] [개수], !요약)
-  if (lowerQuery.startsWith("!summary") || lowerQuery.startsWith("!요약")) {
-    const parts = userQuery.split(/\s+/);
-    let targetCh = channelId;
-    let count = 20;
-    const arg1 = parts[1] || "";
-    const arg2 = parts[2] || "";
-
-    if (parts.length === 2) {
-      if (/^\d{17,20}$/.test(arg1)) {
-        targetCh = arg1;
-      } else if (!isNaN(parseInt(arg1, 10))) {
-        count = parseInt(arg1, 10);
-      }
-    } else if (parts.length >= 3) {
-      targetCh = arg1.replace(/[^0-9]/g, "") || channelId;
-      count = parseInt(arg2, 10) || 20;
-    }
-
-    await message.channel.sendTyping();
-    let chatLog = "";
-    try {
-      chatLog = await fetchChannelMessages(targetCh, count);
-    } catch (err: any) {
-      await message.reply(`⚠️ 채널 메시지를 가져오지 못했습니다: ${err.message}`);
-      return;
-    }
-
-    userQuery = `아래는 디스코드 채널(${targetCh})의 최근 대화 내용입니다. 주요 대화 주제, 주요 논의 사항, 결론을 한국어로 알기 쉽게 핵심 요약해줘:\n\n${chatLog}`;
   }
 
   // ----------------------------------------------------
